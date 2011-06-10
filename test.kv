@@ -1,0 +1,33 @@
+<TestScreen>:
+    BoxLayout:
+        orientation:'vertical'
+        BoxLayout:
+            Button:
+                text: "Button 1"
+            Button:
+                text: "Button 2"
+            Label:
+                text: "Label 3"
+            Button:
+                text: "Button 4"
+
+        BoxLayout:
+            orientation:'vertical'
+            Button:
+                text: "Button A"
+            Button:
+                text: "Button B"
+            Button:
+                text: "Button C"
+            Button:
+                text: "Button D"
+
+
+    Scatter:
+        size: testimage.texture_size
+        size_hint: (None, None)
+        Image:
+            id: testimage
+            size: self.texture_size
+            source: "kivy.jpg"
+

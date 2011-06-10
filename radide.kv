@@ -1,0 +1,33 @@
+<WidgetProxyNode>:
+    text: self.widget.id
+
+<PropertyDialog>:
+    cols:4
+
+<AppEditor>
+    widget_tree: tree_widget or (0,0)
+    widget_container: container_widget
+
+    canvas.after:
+        Color:
+            rgba: (1,1,0,.3)
+        Quad:
+            points: self.highlight_box
+
+    BoxLayout:
+        Scatter:
+            id: container_window
+            auto_bring_to_front:False
+            do_translation:False
+            do_rotation:False
+            do_scale:False
+            StencilView:
+                size: container_window.size
+                FloatLayout:
+                    size: container_window.size
+                    id: container_widget
+
+        TreeView:
+            id: tree_widget
+            size_hint: (0.3,1)
+            root_options: {'text': "Widget Tree", 'no_select':True}
