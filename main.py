@@ -1,5 +1,6 @@
 import os
 import inspect
+import functools
 
 import kivy
 kivy.require('1.0.7')
@@ -34,12 +35,22 @@ class PropertyDialog(GridLayout):
     widget = ObjectProperty(None)
 
     def on_widget(self, *args):
-        clsname = self.widget.__class__.__name__
         for name in sorted(self.widget._Widget__properties):
             title = Label(text=name+":", size_hint=(None,1), width=150, halign='left')
             textval = TextInput(text=str(getattr(self.widget, name)))
+            validate = functools.partial(self.set_value, name, textval)
+            textval.bind(text=validate)
             self.add_widget(title)
             self.add_widget(textval)
+
+    def set_value(self, name, textval, *args):
+        try:
+            val = textval.text
+            if not type(getattr(self.widget, name)) == type('str'):
+                val = eval(val)
+            setattr(self.widget, name, val)
+        except Exception as e:
+            print e
 
 
 class AppEditor(FloatLayout):
@@ -116,9 +127,9 @@ class RadideApp(App):
     title = "Fly little Ratite! Fly!"
 
     def handle_keypress(self, win, key, scancode, uncidode, modifiers):
-        print key
         if key == 293: #F12
             self.app_editor.show_property_popup()
+            return True
 
     def build(self):
         Window.bind(on_key_down=self.handle_keypress)
