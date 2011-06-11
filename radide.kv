@@ -5,10 +5,13 @@
     cols:4
 
 <AppEditor>
-    widget_tree: tree_widget or (0,0)
+    widget_tree: tree_widget
+    workspace: editor_workspace
     widget_container: container_widget
+    app_resolution: (1920,1080)
 
     canvas.after:
+
         Color:
             rgba: (1,1,0,.3)
         Quad:
@@ -16,18 +19,57 @@
 
     BoxLayout:
         Scatter:
-            id: container_window
+            id: editor_window
             auto_bring_to_front:False
             do_translation:False
             do_rotation:False
             do_scale:False
-            StencilView:
-                size: container_window.size
-                FloatLayout:
-                    size: container_window.size
-                    id: container_widget
 
-        TreeView:
-            id: tree_widget
-            size_hint: (0.3,1)
-            root_options: {'text': "Widget Tree", 'no_select':True}
+            StencilView:
+                size: editor_window.size
+                canvas:
+                    Color:
+                        rgba: .4,.4,.4,0.5
+                    Rectangle:
+                        size: self.size
+
+                ScatterPlane:
+                    id: editor_workspace
+                    auto_bring_to_front:False
+                    do_translation:True
+                    do_rotation:False
+                    do_scale:True
+                    scale: 0.5
+                    size: root.app_resolution
+                    center: editor_window.width/2, editor_window.height/2
+
+                    canvas.after:
+                        Color:
+                            rgba: .3,.4,.5,.5
+                        Rectangle:
+                            pos: -10*self.width, -10*self.height
+                            size: 21*self.width,  10*self.height
+                        Rectangle:
+                            pos: -10*self.width,  self.height
+                            size: 21*self.width,  10*self.height
+                        Rectangle:
+                            pos: -10*self.width, 0
+                            size: 10*self.width, self.height
+                        Rectangle:
+                            pos:  self.width, 0
+                            size: 10*self.width, self.height
+
+                    FloatLayout:
+                        size: root.app_resolution
+                        id: container_widget
+
+    TreeView:
+        id: tree_widget
+        size_hint: (0.2,1)
+        root_options: {'text': "Widget Tree", 'no_select':True}
+        canvas:
+            Color:
+                rgba: 0,0,0,.9
+            Rectangle:
+                pos: self.pos
+                size:self.size

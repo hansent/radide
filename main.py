@@ -10,6 +10,8 @@ from kivy.properties import *
 from kivy.core.window import Window
 from kivy.app import App
 from kivy.clock import Clock
+from kivy.animation import Animation
+from kivy.factory import Factory
 from kivy.uix.widget import Widget
 from kivy.uix.label import Label
 from kivy.uix.button import Button
@@ -46,44 +48,58 @@ class PropertyDialog(GridLayout):
     def set_value(self, name, textval, *args):
         try:
             val = textval.text
-            if not type(getattr(self.widget, name)) == type('str'):
+            print "setting value:", val
+            if type(getattr(self.widget, name)) == type('str'):
+                val = eval("'%s'"%val)
+            else:
                 val = eval(val)
             setattr(self.widget, name, val)
         except Exception as e:
             print e
 
 
+
+
+
 class AppEditor(FloatLayout):
     app = ObjectProperty(None)
+    workspace = ObjectProperty(None)
     widget_tree = ObjectProperty(None)
     widget_container = ObjectProperty(None)
     highlight_box = ListProperty([0,0, 0,0, 0,0, 0,0])
     property_popup = ObjectProperty(None, allownone=True)
 
+    def __init__(self, **kwargs):
+        self.update_widget_tree = Clock.create_trigger(self._update_widget_tree)
+        self.update_highlight_box = Clock.create_trigger(self._update_highlight_box)
+        super(AppEditor, self).__init__(**kwargs)
+
     def on_app(self, *args):
         if not self.app.built:
             self.app.load_kv()
             self.app.root = self.app.build()
-        Clock.schedule_once(self.update_widget_tree,-1)
+        self.update_widget_tree()
 
-    def create_tree_node(self, widget, parent_node=None):
+    def _create_tree_node(self, widget, parent_node=None):
+        if parent_node == None:
+            self.widget_tree.root.nodes = []
+        
         node = WidgetProxyNode(widget=widget)
         self.widget_tree.add_node(node, parent_node)
         for c in widget.children:
-            c.bind(x=self.update_highlight_box, right= self.update_highlight_box,
+            c.bind(x=self.update_highlight_box, right=self.update_highlight_box,
                    y=self.update_highlight_box, top=self.update_highlight_box)
-                   
-            self.create_tree_node(c, node)
+            self._create_tree_node(c, node)
 
-    def update_widget_tree(self, *args):
+
+    def _update_widget_tree(self, *args):
         self.widget_container.clear_widgets()
         self.widget_container.add_widget(self.app.root)
+        self.workspace.bind(transform=self._update_highlight_box)
+        self.widget_tree.bind(selected_node=self._update_highlight_box)
+        self._create_tree_node(self.app.root)
 
-        self.widget_tree.root.nodes = []
-        self.create_tree_node(self.app.root)
-        self.widget_tree.bind(selected_node=self.update_highlight_box)
-
-    def update_highlight_box(self, *args):
+    def _update_highlight_box(self, *args):
         try:
             w = self.widget_tree.selected_node.widget
             self.highlight_box = ( w.to_window(w.x, w.y) +
@@ -103,7 +119,7 @@ class AppEditor(FloatLayout):
                 self.property_popup = None
 
             self.property_popup = Popup(
-                    title = "Propertis:", 
+                    title = "Properties:", 
                     size_hint=(.8,.9),
                     content=props,
                     on_dismiss=on_dismiss )
@@ -111,6 +127,15 @@ class AppEditor(FloatLayout):
             self.property_popup.open()
         elif self.property_popup:
             self.property_popup.dismiss()
+
+
+    def hide_widget_tree(self, *args):
+        new_x = 0
+        if self.widget_tree.x > self.widget_tree.width* -0.5:
+            new_x = - self.widget_tree.width
+        Animation.stop_all(self.widget_tree, 'x')
+        anim = Animation(x=new_x, t='out_expo', d=0.5)
+        anim.start(self.widget_tree)
 
 
 
@@ -126,17 +151,24 @@ class TestApp(App):
 class RadideApp(App):
     title = "Fly little Ratite! Fly!"
 
-    def handle_keypress(self, win, key, scancode, uncidode, modifiers):
+    def on_keyboard(self, win, key,*args):
+        print key
         if key == 293: #F12
             self.app_editor.show_property_popup()
-            return True
+            return True           
+        if key == 292: #F11
+            self.app_editor.hide_widget_tree()
+            return True           
 
     def build(self):
-        Window.bind(on_key_down=self.handle_keypress)
+        Window.bind(on_keyboard=self.on_keyboard)
         self.app_editor =  AppEditor(app=TestApp())
         return self.app_editor
 
 
 if __name__ in ('__android__', '__main__'):
     app = RadideApp()
+    #def load_self(*args):
+    #    app.app_editor.app=RadideApp()
+    #Clock.schedule_once(load_self,2)
     app.run()
