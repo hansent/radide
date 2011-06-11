@@ -25,12 +25,15 @@ from kivy.uix.filechooser import FileChooserListView
 
 
 class WidgetProxyNode(TreeViewLabel):
+    editor = ObjectProperty
     widget = ObjectProperty(None)
 
     def on_widget(self, *args):
         if not self.widget.id:
             classname = self.widget.__class__.__name__
             self.widget.id = "%s <uid:%s>"%(classname, self.widget.uid)
+
+
 
 
 class PropertyDialog(GridLayout):
@@ -59,13 +62,38 @@ class PropertyDialog(GridLayout):
 
 
 
+class AppContainer(FloatLayout):
+    editor = ObjectProperty(None)
+
+    def collide_children(self, root, pos, result ):
+        p = root.to_local(*pos)
+        for c in reversed(root.children):
+            if c.collide_point(*p):
+                result.append(c)
+            self.collide_children(c, p, result)
+        return result
+
+    def on_touch_down(self, touch):
+        hits = self.collide_children(self, touch.pos, [])
+        if len(hits):
+            self.editor.select_widget(hits[-1])
+        else:
+            self.editor.select_widget(None)
+        
+    def on_touch_move(self, touch):
+        if self.collide_children(self, touch.pos, []):
+            return True
+
+    def on_touch_up(self, touch):
+        if self.collide_children(self, touch.pos, []):
+            return True
 
 
 class AppEditor(FloatLayout):
     app = ObjectProperty(None)
     workspace = ObjectProperty(None)
     widget_tree = ObjectProperty(None)
-    widget_container = ObjectProperty(None)
+    app_container = ObjectProperty(None)
     highlight_box = ListProperty([0,0, 0,0, 0,0, 0,0])
     property_popup = ObjectProperty(None, allownone=True)
 
@@ -84,18 +112,18 @@ class AppEditor(FloatLayout):
         if parent_node == None:
             self.widget_tree.root.nodes = []
         
-        node = WidgetProxyNode(widget=widget)
+        node = WidgetProxyNode(widget=widget, editor=self)
         self.widget_tree.add_node(node, parent_node)
         for c in widget.children:
             c.bind(x=self.update_highlight_box, right=self.update_highlight_box,
                    y=self.update_highlight_box, top=self.update_highlight_box)
             self._create_tree_node(c, node)
 
-
     def _update_widget_tree(self, *args):
-        self.widget_container.clear_widgets()
-        self.widget_container.add_widget(self.app.root)
+        self.app_container.clear_widgets()
+        self.app_container.add_widget(self.app.root)
         self.workspace.bind(transform=self._update_highlight_box)
+
         self.widget_tree.bind(selected_node=self._update_highlight_box)
         self._create_tree_node(self.app.root)
 
@@ -109,15 +137,45 @@ class AppEditor(FloatLayout):
         except:
             self.highlight_box = [0,0, 0,0, 0,0, 0,0]
 
-    def show_property_popup(self, *args):
-        if self.property_popup == None and self.widget_tree.selected_node:
+    def _find_widget_in_tree(self, w, root):
+        if isinstance(root, WidgetProxyNode) and root.widget == w:
+            if not root.is_open:
+                self.widget_tree.toggle_node(root)
+            return root
+        for n in root.nodes:
+            node =  self._find_widget_in_tree(w, n)
+            if node:
+                if not root.is_open:
+                    self.widget_tree.toggle_node(root)
+                return node
 
-            w = self.widget_tree.selected_node.widget
+    def select_widget(self, w):
+        node = self._find_widget_in_tree(w, self.widget_tree.root)
+        if node:
+            self.widget_tree.select_node(node)
+        else:
+            self.widget_tree.select_node(self.widget_tree.root)
+
+    def insert_new_widget(self, node):
+        parent_widget = node.widget
+        new_widget = Button(text='New Child')
+        parent_widget.add_widget(new_widget)
+        self._update_widget_tree()
+        self.select_widget(parent_widget)
+
+    def delete_widget(self, node):
+        parent_widget = node.widget.parent
+        parent_widget.remove_widget(node.widget)
+        self._update_widget_tree()
+        self.select_widget(parent_widget)
+
+    def toggle_property_popup(self, *args):
+        node = self.widget_tree.selected_node
+        if self.property_popup == None and isinstance(node, WidgetProxyNode):
+            w = node.widget
             props = PropertyDialog(widget=w)
-
             def on_dismiss(*args):
                 self.property_popup = None
-
             self.property_popup = Popup(
                     title = "Properties:", 
                     size_hint=(.8,.9),
@@ -128,8 +186,7 @@ class AppEditor(FloatLayout):
         elif self.property_popup:
             self.property_popup.dismiss()
 
-
-    def hide_widget_tree(self, *args):
+    def toggle_widget_tree(self, *args):
         new_x = 0
         if self.widget_tree.x > self.widget_tree.width* -0.5:
             new_x = - self.widget_tree.width
@@ -139,13 +196,15 @@ class AppEditor(FloatLayout):
 
 
 
-class TestScreen(FloatLayout):
+
+
+class AppScreen(FloatLayout):
     pass
 
 class TestApp(App):
     title = "Test App"
     def build(self):
-        return TestScreen()
+        return AppScreen()
 
 
 class RadideApp(App):
@@ -154,10 +213,10 @@ class RadideApp(App):
     def on_keyboard(self, win, key,*args):
         print key
         if key == 293: #F12
-            self.app_editor.show_property_popup()
+            self.app_editor.toggle_property_popup()
             return True           
         if key == 292: #F11
-            self.app_editor.hide_widget_tree()
+            self.app_editor.toggle_widget_tree()
             return True           
 
     def build(self):
@@ -167,6 +226,7 @@ class RadideApp(App):
 
 
 if __name__ in ('__android__', '__main__'):
+    Factory.register('AppContainer', AppContainer)
     app = RadideApp()
     #def load_self(*args):
     #    app.app_editor.app=RadideApp()

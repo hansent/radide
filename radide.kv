@@ -1,5 +1,17 @@
 <WidgetProxyNode>:
     text: self.widget.id
+    color_selected: (1,1,0,.5)
+    Button:
+        text: "+"
+        pos: (root.right-root.height-5, root.y) if root.is_selected else (-100,-100)
+        size: (root.height, root.height) if root.is_selected else (0,0)
+        on_release: root.editor.insert_new_widget(root)
+    Button:
+        text: "-"
+        pos: (root.right-(2*root.height)-10, root.y) if root.is_selected else (-100,-100)
+        size: (root.height, root.height) if root.is_selected else (0,0)
+        on_release: root.editor.delete_widget(root)
+
 
 <PropertyDialog>:
     cols:4
@@ -7,13 +19,14 @@
 <AppEditor>
     widget_tree: tree_widget
     workspace: editor_workspace
-    widget_container: container_widget
-    app_resolution: (1920,1080)
+    controlls: 
+    app_container: container_widget
+    app_resolution: (800,1280)
 
     canvas.after:
 
         Color:
-            rgba: (1,1,0,.3)
+            rgba: (1,1,0,.5)
         Quad:
             points: self.highlight_box
 
@@ -59,9 +72,10 @@
                             pos:  self.width, 0
                             size: 10*self.width, self.height
 
-                    FloatLayout:
-                        size: root.app_resolution
+                    AppContainer:
                         id: container_widget
+                        size: root.app_resolution
+                        editor: root
 
     TreeView:
         id: tree_widget
@@ -69,7 +83,7 @@
         root_options: {'text': "Widget Tree", 'no_select':True}
         canvas:
             Color:
-                rgba: 0,0,0,.9
+                rgba: .1,.1,.1,.9
             Rectangle:
                 pos: self.pos
                 size:self.size
